@@ -25,6 +25,10 @@ module Bitcoiner
       end
     end
 
+    def wallet_named(wallet_name)
+      wallets.detect { |wallet| wallet.name == wallet_name }
+    end
+
     def request(method_or_array_of_methods, *args)
       if method_or_array_of_methods.is_a?(Array)
         log("#{method_or_array_of_methods}")
