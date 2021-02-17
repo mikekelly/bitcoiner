@@ -19,13 +19,10 @@ module Bitcoiner
       self.logger = logger
     end
 
-    def balance
-      request 'getbalance'
-    end
-
-    def accounts
-      balance_hash = request 'listaccounts'
-      AccountHash.new self, balance_hash
+    def wallets
+      request('listwallets').map do |wallet_name|
+        Wallet.new(name: wallet_name, client: self)
+      end
     end
 
     def request(method_or_array_of_methods, *args)
@@ -38,6 +35,17 @@ module Bitcoiner
       end
     end
 
+    def wallet_request(wallet_name, method, *args)
+      path = "/wallet/#{wallet_name}"
+      post_body = { 'method' => method, 'params' => args, 'id' => DEFAULT_ID }
+      response = post(post_body, path)
+      parsed_response = parse_body(response)
+
+      raise JSONRPCError, parsed_response['error'] if parsed_response['error']
+
+      parsed_response['result']
+    end
+
     def inspect
       "#<Bitcoiner::Client #{endpoint.inspect} #{username}:#{password} >"
     end
@@ -46,16 +54,17 @@ module Bitcoiner
 
     private
 
-    def post(body)
+    def post(body, path="")
+      request_url = endpoint + path
       msg = {
-        endpoint: endpoint,
+        endpoint: request_url,
         username: username,
         body: body.to_json,
       }.to_s
       log(msg)
 
       Typhoeus.post(
-        endpoint,
+        request_url,
         userpwd: [username, password].join(":"),
         body: body.to_json,
       )
